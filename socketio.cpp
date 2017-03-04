@@ -46,14 +46,14 @@ int SocketIO::initClient(const char* host)
     sockfd1 = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 
     if (sockfd1 < 0) {
-        printf("ERROR opening socket\n");
+        perror("ERROR opening socket\n");
         rc = 1;
     }
 
     server = gethostbyname(host);
 
     if (server == NULL) {
-        printf("ERROR, no such host\n");
+        perror("ERROR, no such host\n");
         rc = 2;
     }
 
@@ -84,7 +84,7 @@ int SocketIO::initServer()
     sockfd0 = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd0 < 0) {
-        printf("ERROR opening socket\n");
+        perror("ERROR opening socket\n");
         rc = 1;
     }
 
@@ -94,9 +94,16 @@ int SocketIO::initServer()
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(port);
 
-    if (bind(sockfd0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        printf("ERROR on binding\n");
+    int enable = 1;
+
+    if (setsockopt(sockfd0, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+        perror("setsockopt(SO_REUSEADDR) failed");
         rc = 2;
+    }
+
+    if (bind(sockfd0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+        perror("ERROR on binding\n");
+        rc = 3;
     }
 
     listen(sockfd0, 5);
@@ -105,8 +112,8 @@ int SocketIO::initServer()
     sockfd1 = accept(sockfd0, (struct sockaddr *) &cli_addr, &clilen);
 
     if (sockfd1 < 0) {
-        printf("ERROR on accept\n");
-        rc = 3;
+        perror("ERROR on accept\n");
+        rc = 4;
     }
 
     return(rc);
@@ -154,7 +161,7 @@ int SocketIO::tx(char* buffer, int count)
     int n = write(sockfd1, buffer, count);
 
     if (n < 0) {
-        printf("ERROR writing to socket\n");
+        perror("ERROR writing to socket\n");
     }
 
     return(n);
@@ -166,7 +173,7 @@ int SocketIO::txLine(char* buffer, int count)
     int n = write(sockfd1, buffer, count);
 
     if (n < 0) {
-        printf("ERROR writing to socket\n");
+        perror("ERROR writing to socket\n");
     }
 
     return(n);
