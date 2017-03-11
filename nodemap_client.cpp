@@ -16,55 +16,51 @@
 #include <time.h>
 
 #include "matrix.h"
+#include "model.h"
 #include "nodemap.h"
 #include "socketio.h"
 #include "train.h"
 #include "video.h"
 
 
-#define DEG2RAD     M_PI / 180
-#define BASE_RADIUS 0.1f
+#define DEG2RAD             M_PI / 180
+#define BASE_RADIUS         0.2f
 
-#define CAM_VMAX    1.0f
-#define CAM_VSENS   0.01f
+#define CAM_VMAX            1.0f
+#define CAM_VSENS           0.01f
 
-#define SIZE_TRAINS 4
+#define SIZE_TRAINS                     4
 
 
 /* Used for camera position */
-GLfloat cameraVX = 0;
-GLfloat cameraVY = 0;
-GLfloat cameraVZ = 0;
+GLfloat cameraVX        = 0;
+GLfloat cameraVY        = 0;
+GLfloat cameraVZ        = 0;
 
-/*
-GLfloat baseX = 0;
-GLfloat baseY = 0;
- */
+GLfloat baseX           = - MODEL_WIDTH / 2;
+GLfloat baseY           = - MODEL_HEIGHT / 2;
 
-GLfloat baseX = -7.3f;
-GLfloat baseY = -3.9f;
+GLfloat destX           = 0;
+GLfloat destY           = 0;
 
-GLfloat destX = 0;
-GLfloat destY = 0;
-
-GLfloat cameraZ = -10.0f;
+GLfloat cameraZ         = -20.0f;
 //GLfloat mouseZ = 724.26f;     // 300 / tan 22.5 magic !!!
-GLfloat mouseZ = 927.05;
+GLfloat mouseZ          = 927.05;
 
 /* Used for camera rotation */
-GLfloat cameraRVX = 0;
-GLfloat cameraRVZ = 0;
+GLfloat cameraRVX       = 0;
+GLfloat cameraRVZ       = 0;
 
-GLfloat cameraRX = 0;
-GLfloat cameraRZ = 0;
+GLfloat cameraRX        = 0;
+GLfloat cameraRZ        = 0;
 
-SDLKey gMod = SDLK_UNKNOWN;
-SDLKey gSym = SDLK_UNKNOWN;
+SDLKey gMod             = SDLK_UNKNOWN;
+SDLKey gSym             = SDLK_UNKNOWN;
 
 /* Storage For Textures */
 GLuint texture[12];
 
-int     gNodeId = 1;            // rails hack !!!
+int     gNodeId         = 1;            // rails hack !!!
 
 NodeMap*    nodeMap;
 Train*      trains[SIZE_TRAINS];
@@ -317,11 +313,11 @@ void drawModel()
     glTexCoord2f(0.0f, 1.0f);
     glVertex3f(0.0f, 0.0f, 0.0f);
     glTexCoord2f(0.0f, 0.0f);
-    glVertex3f(0.0f, 7.89f, 0.0f);
+    glVertex3f(0.0f, MODEL_HEIGHT, 0.0f);
     glTexCoord2f(1.0f, 0.0f);
-    glVertex3f(14.61f, 7.89f, 0.0f);
+    glVertex3f(MODEL_WIDTH, MODEL_HEIGHT, 0.0f);
     glTexCoord2f(1.0f, 1.0f);
-    glVertex3f(14.61f, 0.0f, 0.0f);
+    glVertex3f(MODEL_WIDTH, 0.0f, 0.0f);
 
     glEnd();
 }
@@ -366,14 +362,14 @@ int drawGLScene()
 
     for (int i = 0; i < SIZE_TRAINS; ++i) {
         id = trains[i]->getHead();
-        x = nodeMap->getX(id);
-        y = nodeMap->getY(id);
+        x = nodeMap->nodeGetX(id);
+        y = nodeMap->nodeGetY(id);
 
         drawTexture(x, y, BASE_RADIUS, BASE_RADIUS, i + 1);
 
         id = trains[i]->getTail();
-        x = nodeMap->getX(id);
-        y = nodeMap->getY(id);
+        x = nodeMap->nodeGetX(id);
+        y = nodeMap->nodeGetY(id);
 
         drawTexture(x, y, BASE_RADIUS, BASE_RADIUS, i + 1);
     }
@@ -546,17 +542,24 @@ int main(int argc, char **argv)
     /* whether or not the window is active */
     int     isActive    = TRUE;
 
-    nodeMap = new NodeMap(0);
-    nodeMap->load("nodes.txt");
-    nodeMap->loadHops("hops.txt");
+    nodeMap = new NodeMap();
+    nodeMap->nodesLoad("nodes.txt");
+    nodeMap->hopsLoad("hops.txt");
+
+    trains[0]           = new Train(1, 70, 71);
+    trains[1]           = new Train(2, 75, 76);
+    trains[2]           = new Train(3, 77, 78);
+    trains[3]           = new Train(4, 79, 80);
+
+    trains[0]->setDest(57);
+    trains[1]->setDest(58);
+    trains[2]->setDest(81);
+    trains[3]->setDest(83);
 
     for (int i = 0; i < SIZE_TRAINS; ++i) {
-        trains[i] = new Train(i + 1, i + 11, i + 1);
         nodeMap->trainAdd(trains[i]);
-        trains[i]->setDest(i + 6);
         trains[i]->dump();
     }
-
 
     /* initialize Video */
     videoFlags = videoInit();
@@ -664,6 +667,7 @@ int main(int argc, char **argv)
         }
     }
 
+    printf("terminating socketIO\n");
     socketIO->~SocketIO();
     videoQuit(0);
 

@@ -10,6 +10,7 @@
  */
 
 
+#include <getopt.h>
 #include <stdio.h>
 
 #include "nodemap.h"
@@ -32,12 +33,20 @@ void travel(NodeMap* nodeMap)
 
     Train*      trains[SIZE_TRAINS];
 
+    trains[0]           = new Train(1, 70, 71);
+    trains[1]           = new Train(2, 75, 76);
+    trains[2]           = new Train(3, 77, 78);
+    trains[3]           = new Train(4, 79, 80);
+
+    trains[0]->setDest(57);
+    trains[1]->setDest(58);
+    trains[2]->setDest(81);
+    trains[3]->setDest(83);
+
     for (int i = 0; i < SIZE_TRAINS; ++i) {
-        trains[i] = new Train(i + 1, i + 11, i + 1);
-        trains[i]->setDest(i + 6);
         nodeMap->trainAdd(trains[i]);
-//        trains[i]->dump(i + 1);
-        tx('e', i + 1, i + 1, i + 11);
+        trains[i]->dump();
+        tx('e', trains[i]->getId(), trains[i]->getTail(), trains[i]->getHead());
     }
 
     printf("\n");
@@ -65,19 +74,26 @@ void travel(NodeMap* nodeMap)
 
 int main(int argc, char **argv)
 {
+    int         opt = getopt(argc, argv, "e");
     uint16_t    j;
     NodeMap*    nodeMap;
 
     printf("initializing nodemap\n");
 
-    nodeMap = new NodeMap(0);
-    nodeMap->load("nodes.txt");
+    nodeMap = new NodeMap();
+    nodeMap->nodesLoad("nodes.txt");
+    nodeMap->nodesDump();
 
-    nodeMap->dump();
-//    nodeMap->evalHops();
-    nodeMap->loadHops("hops.txt");
-    nodeMap->dumpHops();
-//    nodeMap->saveHops("hops.txt");
+    if (opt == 'e') {
+        nodeMap->hopsEval();
+        nodeMap->hopsSave("hops.txt");
+    } else {
+        nodeMap->hopsLoad("hops.txt");
+    }
+
+    nodeMap->hopsDump();
+    nodeMap->railsLoad("rails.txt");
+    nodeMap->railsDump();
 
     travel(nodeMap);
 

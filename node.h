@@ -15,11 +15,10 @@
 #define NODE_H
 
 
-#define NODE_SIZE_CONNECTIONS       3
-
-
 #include <map>
 #include <stdint.h>
+
+#define NODE_LINKS_MAX                  4
 
 
 class Node
@@ -27,26 +26,27 @@ class Node
 public:
     Node();
     ~Node();
-    int         connect(uint16_t id);
     void        dump(uint16_t id);
-    uint16_t    getConnection(uint8_t c);
     uint16_t    getHops(uint16_t id);
-    uint8_t     getNc();
+    uint16_t    getLink(uint16_t l);
+    uint16_t    getLinkSize();
+    uint16_t    getRail(uint16_t l);
     uint16_t    getToken();
     float       getX();
     float       getY();
-    void        setHops(uint16_t nid, uint16_t nhops);
+    void        link(uint16_t id);
+    void        setHops(uint16_t id, uint16_t h);
     void        setPos(float nx, float ny);
+    void        setRail(uint16_t l, uint16_t r);
     void        setToken(uint16_t ntoken);
 
 private:
-    uint16_t    connection[NODE_SIZE_CONNECTIONS];
-    uint8_t     nc;
-    uint16_t    token;
-    float       x;
-    float       y;
-
     std::map<uint16_t, uint16_t>    hops;
+    std::map<uint16_t, uint16_t>    links;
+    std::map<uint16_t, uint16_t>    rails;
+    uint16_t                        token;
+    float                           x;
+    float                           y;
 };
 
 

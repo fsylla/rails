@@ -16,23 +16,27 @@ CXX     = g++
 CFLAGS  = -MD -g
 LDFLAGS = -lglut -lGL -lGLU -lSDL -lSDL_image
 
-TARGETS	= nodemap_client nodemap_server
+TARGETS	= nodemap_client nodemap_server nodemap_draw
 TESTS	= nodemap_test rails_test
-
-OBJ	= node.o nodemap.o train.o
+OBJ	= node.o nodemap.o rail.o train.o
 OBJ_GL	= matrix.o video.o
 
 DEP	= $(OBJ:.o=.d) $(OBJ_GL:.o=.d)
 
- 
+
+all:				$(TARGETS) $(TESTS)
+
+
+nodemap_draw.o:                 nodemap_draw.cpp
+	$(CXX) -c `pkg-config --cflags gtk+-3.0` -o $@ $<
+
+
 %.o:				%.c
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 %.o:				%.cpp
 	$(CXX) -c $(CFLAGS) -o $@ $<
 
-
-all:				$(TARGETS) $(TESTS)
 
 
 nodemap_client:			nodemap_client.o $(OBJ) $(OBJ_GL) socketio.o
@@ -45,6 +49,10 @@ nodemap_server:			nodemap_server.o $(OBJ) socketio.o
 
 nodemap_test:			nodemap_test.o $(OBJ)
 	$(CXX) -o $@ $@.o $(OBJ)
+
+
+nodemap_draw:                   nodemap_draw.o $(OBJ)
+	$(CXX) -o $@ $@.o $(OBJ) `pkg-config --libs gtk+-3.0`
 
 
 rails_test:			rails_test.o $(OBJ) $(OBJ_GL)

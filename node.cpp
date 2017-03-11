@@ -5,7 +5,7 @@
  * created:     Wed Feb 22 22:35:55 2017
  * by:          frank
  *
- * description: nodes are points with static coordinates and connections to
+ * description: nodes are points with static coordinates and links to
  *              other nodes.
  * ____________________________________________________________________________
  */
@@ -18,69 +18,72 @@
 
 Node::Node()
 {
-    nc          = 0;
     token       = 0;
     x           = 0.0;
     y           = 0.0;
-
-    for (int i = 0; i < NODE_SIZE_CONNECTIONS; ++i) {
-        connection[i] = 0xffff;
-    }
 }
 
 
 Node::~Node()
 {
-}
-
-
-int     Node::connect(uint16_t id)
-{
-    int rc      = 1;
-
-    if (nc < NODE_SIZE_CONNECTIONS) {
-        connection[nc++] = id;
-        hops[id] = 1;
-        rc = 0;
-    }
-
-    return(rc);
+    hops.~map();
+    links.~map();
+    rails.~map();
 }
 
 
 void        Node::dump(uint16_t id)
 {
-    printf("Node %3d token = %3d\n", id, token);
+    printf("Node %5d token = %5d x = %8.3f y = %8.3f\n", id, token, x, y);
 
-    for (int i = 0; i < nc; ++i) {
-        printf("  -> %3d\n", connection[i]);
+    for (std::map<uint16_t,uint16_t>::iterator it = links.begin(); it != links.end(); ++it) {
+
+        printf("  -> %5d\n", it->second);
     }
 
     printf("\n");
 }
 
 
-uint16_t    Node::getConnection(uint8_t c)
-{
-    uint16_t    id  = 0xffff;
-
-    if (c < nc) {
-        id = connection[c];
-    }
-
-    return(id);
-}
-
-
 uint16_t    Node::getHops(uint16_t id)
 {
-    return(hops[id]);
+    uint16_t    h       = 0;
+
+    if (hops.count(id)) {
+        h               = hops[id];
+    }
+
+    return(h);
 }
 
 
-uint8_t     Node::getNc()
+uint16_t     Node::getLink(uint16_t l)
 {
-    return(nc);
+    uint16_t    link    = 0;
+
+    if (links.count(l)) {
+        link            = links[l];
+    }
+
+    return(link);
+}
+
+
+uint16_t    Node::getLinkSize()
+{
+    return(links.size());
+}
+
+
+uint16_t     Node::getRail(uint16_t l)
+{
+    uint16_t    rail    = 0;
+
+    if (rails.count(l)) {
+        rail            = rails[l];
+    }
+
+    return(l);
 }
 
 
@@ -99,6 +102,12 @@ float       Node::getX()
 float       Node::getY()
 {
     return(y);
+}
+
+
+void        Node::link(uint16_t id)
+{
+    links[links.size()] = id;
 }
 
 

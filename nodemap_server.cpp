@@ -42,11 +42,20 @@ void travel(NodeMap* nodeMap, SocketIO* socketIO)
 
     Train*      trains[SIZE_TRAINS];
 
+    trains[0]           = new Train(1, 70, 71);
+    trains[1]           = new Train(2, 75, 76);
+    trains[2]           = new Train(3, 77, 78);
+    trains[3]           = new Train(4, 79, 80);
+
+    trains[0]->setDest(57);
+    trains[1]->setDest(58);
+    trains[2]->setDest(81);
+    trains[3]->setDest(83);
+
     for (int i = 0; i < SIZE_TRAINS; ++i) {
-        trains[i] = new Train(i + 1, i + 11, i + 1);
-        trains[i]->setDest(i + 6);
         nodeMap->trainAdd(trains[i]);
-        tx(socketIO, 'e', i + 1, i + 1, i + 11);
+        trains[i]->dump();
+        tx(socketIO, 'e', trains[i]->getId(), trains[i]->getTail(), trains[i]->getHead());
     }
 
     sleep(1);
@@ -79,9 +88,9 @@ int main(int argc, char **argv)
 
     printf("initializing nodeMap\n");
 
-    nodeMap = new NodeMap(0);
-    nodeMap->load("nodes.txt");
-    nodeMap->loadHops("hops.txt");
+    nodeMap = new NodeMap();
+    nodeMap->nodesLoad("nodes.txt");
+    nodeMap->hopsLoad("hops.txt");
 
     printf("initializing socketIO\n");
 
@@ -90,6 +99,7 @@ int main(int argc, char **argv)
 
     travel(nodeMap, socketIO);
 
+    printf("terminating socketIO\n");
     socketIO->~SocketIO();
 
     return(0);
