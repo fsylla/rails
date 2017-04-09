@@ -546,10 +546,10 @@ int main(int argc, char **argv)
     nodeMap->nodesLoad("nodes.txt");
     nodeMap->hopsLoad("hops.txt");
 
-    trains[0]           = new Train(1, 70, 71);
-    trains[1]           = new Train(2, 75, 76);
-    trains[2]           = new Train(3, 77, 78);
-    trains[3]           = new Train(4, 79, 80);
+    trains[0]           = new Train(1, 70, 113);
+    trains[1]           = new Train(2, 75, 114);
+    trains[2]           = new Train(3, 77, 115);
+    trains[3]           = new Train(4, 79, 116);
 
     trains[0]->setDest(57);
     trains[1]->setDest(58);

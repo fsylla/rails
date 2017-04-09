@@ -32,7 +32,7 @@
 #define CAM_VMAX    1.0f
 #define CAM_VSENS   0.01f
 
-#define SIZE_TRAINS 4
+#define SIZE_TRAINS 1
 
 
 /* Used for camera position */
@@ -529,15 +529,10 @@ int main(int argc, char **argv)
     nodeMap->nodesLoad("nodes.txt");
     nodeMap->hopsLoad("hops.txt");
 
-    trains[0]           = new Train(1, 70, 71);
-    trains[1]           = new Train(2, 75, 76);
-    trains[2]           = new Train(3, 77, 78);
-    trains[3]           = new Train(4, 79, 80);
-
-    trains[0]->setDest(57);
-    trains[1]->setDest(58);
-    trains[2]->setDest(81);
-    trains[3]->setDest(83);
+//    trains[0]           = new Train(1, 81, 82);
+//    trains[1]           = new Train(2, 83, 121);
+//    trains[2]           = new Train(3, 58, 112);
+    trains[0]           = new Train(4, 57, 110);
 
     for (int i = 0; i < SIZE_TRAINS; ++i) {
         nodeMap->trainAdd(trains[i]);
