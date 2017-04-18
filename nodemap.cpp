@@ -11,6 +11,7 @@
  */
 
 
+#include <math.h>
 #include <stdio.h>
 
 #include "nodemap.h"
@@ -20,6 +21,7 @@ NodeMap::NodeMap()
 {
     nodeIdMax   = 0;
     railIdMax   = 0;
+    trainIdMax  = 0;
 }
 
 
@@ -28,15 +30,21 @@ NodeMap::~NodeMap()
 }
 
 
-std::map<uint16_t,Node> *NodeMap::getNodes()
+std::map<uint16_t,Node>         *NodeMap::getNodes()
 {
     return(&nodes);
 }
 
 
-std::map<uint16_t,Rail> *NodeMap::getRails()
+std::map<uint16_t,Rail>         *NodeMap::getRails()
 {
     return(&rails);
+}
+
+
+std::map<uint16_t,Train>        *NodeMap::getTrains()
+{
+    return(&trains);
 }
 
 
@@ -323,7 +331,7 @@ int     NodeMap::railsLoad(const char* path)
 
     if (pFile) {
         while (fgets(line, 80, pFile)) {
-            l = sscanf(line, "%hu;%hu;%hu;%lf", &id, &n1, &n2, &r);
+            sscanf(line, "%hu;%hu;%hu;%lf", &id, &n1, &n2, &r);
 
             rails[id] = Rail(n1, n2);
 
@@ -335,6 +343,22 @@ int     NodeMap::railsLoad(const char* path)
 
             if (id > railIdMax) {
                 railIdMax   = id;
+            }
+
+            for (l = 0; l < nodes[n1].getLinkSize(); ++l) {
+                if (nodes[n1].getLink(l) == n2) {
+                    nodes[n1].setRail(l, id);
+                    // printf("NodeMap::railsLoad: node %d rail %d\n", n1, id);
+                    break;
+                }
+            }
+    
+            for (l = 0; l < nodes[n2].getLinkSize(); ++l) {
+                if (nodes[n2].getLink(l) == n1) {
+                    nodes[n2].setRail(l, id);
+                    // printf("NodeMap::railsLoad: node %d rail %d\n", n2, id);
+                    break;
+                }
             }
         }
 
@@ -369,74 +393,279 @@ int     NodeMap::railsSave(const char* path)
 }
 
 
-int     NodeMap::trainAdd(Train* train)
+uint16_t        NodeMap::trainAdd(uint16_t n1, uint16_t n2, float l)
 {
-    uint16_t    id      = train->getId();
-    uint16_t    head    = train->getHead();
-    uint16_t    tail    = train->getTail();
-    int         rc      = 0;
+    uint16_t    id      = 0;
+    uint16_t    rid     = 0;
+    double      rl;
 
-    nodes[head].setToken(id);
-    nodes[tail].setToken(id);
+    if (nodes.count(n1)) {
+        if (nodes.count(n2)) {
+            id          = trainIdMax + 1;
+        } else {
+            printf("NodeMap::trainAdd: invalid node %d\n", n2);
+        }
+    } else {
+        printf("NodeMap::trainAdd: invalid node %d\n", n1);
+    }
+        
+    if (id) {
+        if (nodes[n2].getHops(n1) == 1) {
+            for (int l = 0; l < nodes[n2].getLinkSize(); ++l) {
+                if (nodes[n2].getLink(l) == n1) {
+                    rid = nodes[n2].getRail(l);
+                    rl  = rails[rid].getL();
+                    printf("NodeMap::trainAdd: rid = %d l = %6.2f\n", rid, rl);
+                    break;
+                }
+            }
+        } else {
+            printf("NodeMap::trainAdd: invalid nodes %d %d\n", n1, n2);
+            id  = 0;
+        }
+    }
+
+    if (rid) {
+        if (l <= rl) {
+            trains[id]  = Train(n1, n2, l);
+            trainIdMax  = id;
+
+            trains[id].setHeadRail(rid);
+            trains[id].setTailRail(rid);
+            trains[id].setTailPos(rl - l);
+
+            nodes[n1].setToken(id);
+            nodes[n2].setToken(id);
+
+            rails[rid].fill(n1, 0, l);
+        } else {
+            printf("NodeMap::trainAdd: train length %6.2f exceeds rail length %6.2f\n", l, rl);
+            id  = 0;
+        }
+    }
+            
+    return(id);
+}
+
+
+nodemap_state_t         NodeMap::trainRun(uint16_t id)
+{
+    uint16_t    dest;
+    uint16_t    head;
+    uint16_t    headNxt;
+    uint16_t    headRail;
+    uint16_t    tail;
+    uint16_t    tailExt;
+    uint16_t    tailNxt;
+    uint16_t    tailRail;
+    uint16_t    token;
+    uint16_t    hops    = 0;
+    uint16_t    rid     = 0;
+    uint8_t     lOpt;
+    
+    double      headPos = 0.0;
+    double      tailPos = 0.0;
+    double      rl;
+    double      speed;
+
+    nodemap_state_t     rc      = error;
+
+    if (trains.count(id)) {
+        dest            = trains[id].getDest();
+        head            = trains[id].getHead();
+        headPos         = trains[id].getHeadPos();
+        headRail        = trains[id].getHeadRail();
+        tail            = trains[id].getTail();
+        tailPos         = trains[id].getTailPos();
+        tailRail        = trains[id].getTailRail();
+        speed           = trains[id].getSpeed();
+        hops            = nodes[head].getHops(dest);
+    } else {
+        printf("NodeMap::trainRun: invalid id %d\n", id);
+    }
+
+    if (hops > 0) {
+        headPos = headPos + speed;
+
+        if (headPos < 0) {
+            trains[id].setHeadPos(headPos);
+            rl  = rails[headRail].getL();
+            
+            if (rails[headRail].fill(head, rl, - headPos)) {
+                printf("NodeMap::trainRun: fill error A\n");
+                trains[id].dump(id);
+            }
+
+            rc  = ok;
+        } else {
+            for (int l = 0; l < nodes[head].getLinkSize(); ++l) {
+                headNxt = nodes[head].getLink(l);
+    
+                if (nodes[headNxt].getHops(dest) < hops) {
+                    hops = nodes[headNxt].getHops(dest);
+                    lOpt = l;
+                }
+            }
+   
+            headNxt     = nodes[head].getLink(lOpt);
+            rid         = nodes[head].getRail(lOpt);
+            rl          = rails[rid].getL();
+            token       = nodes[headNxt].getToken();
+
+            if (token) {
+                if (id == token) {
+                    trains[id].setHead(tail);
+                    trains[id].setHeadPos(- tailPos);
+                    trains[id].setHeadRail(tailRail);
+                    trains[id].setTail(head);
+                    trains[id].setTailPos(speed - headPos);
+                    trains[id].setTailRail(headRail);
+
+                    printf("NodeMap::trainRun: id = %d swapped\n", id);
+                    rc  = blocked;
+                } else {
+                    printf("NodeMap::trainRun: id = %d node %d blocked by token %d\n", id, headNxt, nodes[headNxt].getToken());
+                    rc  = blocked;
+                }
+            } else {
+                if (headPos < rl) {
+                    if (rails[headRail].fill(head, 0, rails[headRail].getL())) {
+                        printf("NodeMap::trainRun: fill error B\n");
+                        trains[id].dump(id);
+                    }
+
+                    trains[id].setHead(headNxt);
+                    trains[id].setHeadPos(headPos -rl);
+                    trains[id].setHeadRail(rid);
+
+                    if (rails[rid].fill(head, 0, headPos)) {
+                        printf("NodeMap::trainRun: fill error C\n");
+                        trains[id].dump(id);
+                    }
+
+                    nodes[headNxt].setToken(id);
+
+                    rc  = ok;
+                } else {
+                    printf("NodeMap::trainRun: headPos %6.2f > rl %6.2f\n", headPos, rl);
+                    printf("                   head = %d rid = %d lOpt = %d\n", head, rid, lOpt);
+
+                    trains[id].dump(id);
+                }
+            }
+        }
+    } else {                            // head == dest
+        headPos         = headPos + speed;
+
+        if (headPos < 0) {
+            trains[id].setHeadPos(headPos);
+            rl          = rails[headRail].getL();
+            if (rails[headRail].fill(head, rl, - headPos)) {
+                        printf("NodeMap::trainRun: fill error D\n");
+                        trains[id].dump(id);
+            }
+            
+            rc  = ok;
+        } else {
+            rc  = done;
+        }
+    }
+
+    if (rc == ok) {
+        tailPos = tailPos + speed;
+        rl      = rails[tailRail].getL();
+
+        if (tailPos > rl) {
+            // clear previous section
+            nodes[tail].setToken(0);
+
+            rails[tailRail].clear();
+
+            // init next section
+            hops        = nodes[tail].getHops(head);
+
+            for (int l = 0; l < nodes[tail].getLinkSize(); ++l) {
+                tailNxt = nodes[tail].getLink(l);
+    
+                if (nodes[tailNxt].getHops(head) < hops) {
+                    hops = nodes[tailNxt].getHops(head);
+                    lOpt = l;
+                }
+            }
+    
+            tailNxt     = nodes[tail].getLink(lOpt);
+            hops        = nodes[tailNxt].getHops(head);
+
+            for (int l = 0; l < nodes[tailNxt].getLinkSize(); ++l) {
+                tailExt = nodes[tailNxt].getLink(l);
+    
+                if (nodes[tailExt].getHops(head) < hops) {
+                    hops = nodes[tailExt].getHops(head);
+                    lOpt = l;
+                }
+            }
+    
+            rid     = nodes[tailNxt].getRail(lOpt);
+
+            nodes[tailNxt].setToken(id);
+
+            trains[id].setTail(tailNxt);
+            trains[id].setTailPos(tailPos - rl);
+            trains[id].setTailRail(rid);
+        } else {
+            trains[id].setTailPos(tailPos);
+        }
+
+        // ensure to use updated values
+
+        head            = trains[id].getHead();
+        headPos         = trains[id].getHeadPos();
+        headRail        = trains[id].getHeadRail();
+        tail            = trains[id].getTail();
+        tailPos         = trains[id].getTailPos();
+        tailRail        = trains[id].getTailRail();
+        rl              = rails[tailRail].getL();
+
+        if (tailRail == headRail) {
+            if (rails[tailRail].fill(tail, tailPos, rl + headPos)) {
+                        printf("NodeMap::trainRun: fill error E\n");
+                        trains[id].dump(id);
+            }
+        } else {
+            if (rails[tailRail].fill(tail, tailPos, rl)) {
+                        printf("NodeMap::trainRun: fill error F\n");
+                        trains[id].dump(id);
+            }
+        }
+    }
+
     return(rc);
 }
 
 
-int    NodeMap::trainRun(Train* train)
+int     NodeMap::trainSetDest(uint16_t id, uint16_t ndest)
 {
-    uint16_t    id      = train->getId();
-    uint16_t    dest    = train->getDest();
-    uint16_t    head    = train->getHead();
-    uint16_t    headNxt;
-    uint16_t    tail    = train->getTail();
-    uint16_t    token;
-    uint8_t     lOpt;
-    uint16_t    hops    = nodes[head].getHops(dest);
-    int         rc      = 0;
+    int         rc      = 1;            // assume error
 
-    if (hops > 0) {
-        for (int l = 0; l < nodes[head].getLinkSize(); ++l) {
-            headNxt = nodes[head].getLink(l);
-
-            if (nodes[headNxt].getHops(dest) < hops) {
-                hops = nodes[headNxt].getHops(dest);
-                lOpt = l;
-            }
-        }
-
-        if (nodes[head].getLinkSize() < 3 || lOpt == 0) {
-            headNxt = nodes[head].getLink(lOpt);
+    if (trains.count(id)) {
+        if (nodes.count(ndest)) {
+            trains[id].setDest(ndest);
+            rc          = 0;
         } else {
-            headNxt = nodes[head].getLink(0);
-
-            if (headNxt == tail) {
-                headNxt = nodes[head].getLink(lOpt);
-            } else {
-                printf("NodeMap::trainRun: headNxt redirected from %d to %d\n", nodes[head].getLink(lOpt), headNxt);
-            }
-        }
-
-        token       = nodes[headNxt].getToken();
-
-        if (token) {
-            if (id == token) {
-                train->setTail(head);
-                train->setHead(tail);
-                rc  = 1;
-            } else {
-                printf("NodeMap::trainRun: Node %d blocked by token %d\n", headNxt, nodes[headNxt].getToken());
-            }
-        } else {
-            nodes[headNxt].setToken(id);
-            nodes[tail].setToken(0);
-            train->setTail(head);
-            train->setHead(headNxt);
-            rc      = 1;                // TBD !!!
+            printf("NodeMap::trainSetDest: invalid destination %d\n", ndest);
         }
     } else {
-        printf("NodeMap::trainRun: ERROR\n");
+        printf("NodeMap::trainSetDest: invalid id %d\n", id);
     }
-
+        
     return(rc);
+}
+
+
+void        NodeMap::trainsDump()
+{
+    for (std::map<uint16_t,Train>::iterator it = trains.begin(); it != trains.end(); ++it) {
+        it->second.dump(it->first);
+    }
 }
 

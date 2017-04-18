@@ -28,25 +28,25 @@ void tx(char cmd, int train, uint16_t n1, uint16_t n2)
 
 void travel(NodeMap* nodeMap)
 {
-    uint8_t     move    = 1;
-    uint16_t    head, tail;
+    std::map<uint16_t,Train>    *trains = nodeMap->getTrains();
 
-    Train*      trains[SIZE_TRAINS];
+    uint8_t                     move    = 1;
+    uint16_t                    head;
+    uint16_t                    tail;
 
-    trains[0]           = new Train(1, 70, 113);
-    trains[1]           = new Train(2, 75, 114);
-    trains[2]           = new Train(3, 77, 115);
-    trains[3]           = new Train(4, 79, 116);
+    nodeMap->trainAdd(70, 113, 1);
+    nodeMap->trainAdd(75, 114, 1);
+    nodeMap->trainAdd(77, 115, 1);
+    nodeMap->trainAdd(79, 116, 1);
 
-    trains[0]->setDest(57);
-    trains[1]->setDest(58);
-    trains[2]->setDest(81);
-    trains[3]->setDest(83);
+    nodeMap->trainSetDest(1, 57);
+    nodeMap->trainSetDest(2, 58);
+    nodeMap->trainSetDest(3, 81);
+    nodeMap->trainSetDest(4, 83);
 
-    for (int i = 0; i < SIZE_TRAINS; ++i) {
-        nodeMap->trainAdd(trains[i]);
-        trains[i]->dump();
-        tx('e', trains[i]->getId(), trains[i]->getTail(), trains[i]->getHead());
+    for (std::map<uint16_t,Train>::iterator it = trains->begin(); it != trains->end(); ++it) {
+        it->second.dump(it->first);
+        tx('e', it->first, it->second.getTail(), it->second.getHead());
     }
 
     printf("\n");
@@ -54,20 +54,24 @@ void travel(NodeMap* nodeMap)
     while (move) {
         move = 0;
 
-        for (int i = 0; i < SIZE_TRAINS; ++i) {
-            head = trains[i]->getHead();
-            tail = trains[i]->getTail();
+        for (std::map<uint16_t,Train>::iterator it = trains->begin(); it != trains->end(); ++it) {
+            head = it->second.getHead();
+            tail = it->second.getTail();
 
-            if (head != trains[i]->getDest()) {
-                if (nodeMap->trainRun(trains[i])) {
-                    tx('e', i + 1, head, trains[i]->getHead());
-                    tx('l', i + 1, tail, trains[i]->getTail());
+            if (head != it->second.getDest()) {
+                if (nodeMap->trainRun(it->first) == ok) {
+                    if (it->second.getHead() != head) {
+                        tx('e', it->first, head, it->second.getHead());
+                    }
+
+                    if (it->second.getTail() != tail) {
+                        tx('l', it->first, tail, it->second.getTail());
+                    }
+
                     ++move;
                 }
             }
         }
-
-        printf("\n");
     }
 }
 

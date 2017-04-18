@@ -83,7 +83,7 @@ uint16_t     Node::getRail(uint16_t l)
         rail            = rails[l];
     }
 
-    return(l);
+    return(rail);
 }
 
 
@@ -121,6 +121,12 @@ void        Node::setPos(float nx, float ny)
 {
     x           = nx;
     y           = ny;
+}
+
+
+void        Node::setRail(uint16_t l, uint16_t r)
+{
+    rails[l]    = r;                    // check my brain !!!
 }
 
 

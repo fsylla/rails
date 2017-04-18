@@ -240,26 +240,26 @@ void handleMouseButtonDown(SDL_Event event)
     GLfloat planeX, planeY;
 
     switch (event.button.button) {
-    case SDL_BUTTON_LEFT:
-        x = (GLfloat) (surface->w / 2 - event.button.x);
-        y = (GLfloat) (event.button.y - surface->h / 2);
-        convertMouse2Plane(x, y, &planeX, &planeY);
-        printf("%5d;%8.3f;%8.3f\n", gNodeId++, planeX - baseX, planeY - baseY);
-        break;
-
-    case SDL_BUTTON_RIGHT:
-        x = (GLfloat) (surface->w / 2 - event.button.x);
-        y = (GLfloat) (event.button.y - surface->h / 2);
-        printf("handleMouseButtonDown: x = %f, y = %f\n", x, y);
-        convertMouse2Plane(x, y, &planeX, &planeY);
-        printf("handleMouseButtonDown: xp = %f, yp = %f\n", planeX, planeY);
-
-        destX = planeX;
-        destY = planeY;
-        break;
-
-    default:
-        printf("handleMouseButtonDown: button %d\n", event.button.button);
+        case SDL_BUTTON_LEFT:
+            x = (GLfloat) (surface->w / 2 - event.button.x);
+            y = (GLfloat) (event.button.y - surface->h / 2);
+            convertMouse2Plane(x, y, &planeX, &planeY);
+            printf("%5d;%8.3f;%8.3f\n", gNodeId++, planeX - baseX, planeY - baseY);
+            break;
+    
+        case SDL_BUTTON_RIGHT:
+            x = (GLfloat) (surface->w / 2 - event.button.x);
+            y = (GLfloat) (event.button.y - surface->h / 2);
+            printf("handleMouseButtonDown: x = %f, y = %f\n", x, y);
+            convertMouse2Plane(x, y, &planeX, &planeY);
+            printf("handleMouseButtonDown: xp = %f, yp = %f\n", planeX, planeY);
+    
+            destX = planeX;
+            destY = planeY;
+            break;
+    
+        default:
+            printf("handleMouseButtonDown: button %d\n", event.button.button);
 
     }
 }
@@ -477,10 +477,10 @@ void moveCamera()
 
 void update(SocketIO *socketIO)
 {
-    char    buffer[256];
-    int     i = 0;
-    int     j = 0;
-    int     n;
+    char        buffer[256];
+    int         i               = 0;
+    int         j               = 0;
+    int         n;
     uint16_t    v[4];
 
     n = socketIO->rxLine(buffer, 255);  // this is non blocking !!!
@@ -500,18 +500,34 @@ void update(SocketIO *socketIO)
         }
 
         switch (buffer[0]) {
-        case 'e':
-            printf("enter: train = %d node = %d\n", v[0], v[2]);
-            trains[v[0] - 1]->setTail(v[1]);
-            trains[v[0] - 1]->setHead(v[2]);
-            break;
+            case 'e':
+                printf("enter: train = %d node = %d\n", v[0], v[2]);
+                
+                if (v[1] == trains[v[0] - 1]->getHead()) {
+                    trains[v[0] - 1]->setHead(v[2]);
+                }
 
-        case 'l':
-            printf("leave: train = %d node = %d\n", v[0], v[1]);
-            break;
+                if (v[1] == trains[v[0] - 1]->getTail()) {
+                    trains[v[0] - 1]->setTail(v[2]);
+                }
+                
+                break;
+    
+            case 'l':
+                printf("leave: train = %d node = %d\n", v[0], v[1]);
+                
+                if (v[1] == trains[v[0] - 1]->getHead()) {
+                    trains[v[0] - 1]->setHead(v[2]);
+                }
 
-        default:
-            printf("update: unknown command %c\n", buffer[0]);
+                if (v[1] == trains[v[0] - 1]->getTail()) {
+                    trains[v[0] - 1]->setTail(v[2]);
+                }
+                
+                break;
+    
+            default:
+                printf("update: unknown command %c\n", buffer[0]);
 
         }
     }
@@ -523,8 +539,6 @@ int main(int argc, char **argv)
     int     i;
     int     videoFlags;
     char    path[80];
-    time_t  tCur        = time(NULL);
-
     char    buffer[256];
     int     n;
 
@@ -546,30 +560,22 @@ int main(int argc, char **argv)
     nodeMap->nodesLoad("nodes.txt");
     nodeMap->hopsLoad("hops.txt");
 
-    trains[0]           = new Train(1, 70, 113);
-    trains[1]           = new Train(2, 75, 114);
-    trains[2]           = new Train(3, 77, 115);
-    trains[3]           = new Train(4, 79, 116);
+    trains[0]           = new Train(95, 124, 3);
+    trains[1]           = new Train(81,  82, 4);
+    trains[2]           = new Train(64,  62, 4);
+    trains[3]           = new Train(70, 113, 3);
 
-    trains[0]->setDest(57);
-    trains[1]->setDest(58);
-    trains[2]->setDest(81);
-    trains[3]->setDest(83);
-
-    for (int i = 0; i < SIZE_TRAINS; ++i) {
-        nodeMap->trainAdd(trains[i]);
-        trains[i]->dump();
-    }
+/*
+    nodeMap->trainAdd(95, 124, 3);
+    nodeMap->trainAdd(81, 82, 4);
+    nodeMap->trainAdd(64, 62, 4);
+    nodeMap->trainAdd(70, 113, 3);
+ */
 
     /* initialize Video */
     videoFlags = videoInit();
 
     /* Load in the textures */
-    /*
-    if (!videoLoadGLTextures("data/rails000.jpg", &texture[0])) {
-    return(FALSE);
-    }
-    */
 
     for (i = 0; i <= 9; ++i) {
         sprintf(path, "data/number%d.bmp", i);
@@ -586,8 +592,6 @@ int main(int argc, char **argv)
     if (!videoLoadGLTextures("data/Kompass.bmp", &texture[11])) {
         return(FALSE);
     }
-
-    tCur        = time(NULL);
 
     /* wait for events */
     while (!done) {

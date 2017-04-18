@@ -13,12 +13,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "destseq.h"
 #include "nodemap.h"
 #include "train.h"
 #include "socketio.h"
-
-
-#define SIZE_TRAINS         4
 
 
 void tx(SocketIO* socketIO, char cmd, int train, uint16_t n1, uint16_t n2)
@@ -37,46 +35,59 @@ void tx(SocketIO* socketIO, char cmd, int train, uint16_t n1, uint16_t n2)
 
 void travel(NodeMap* nodeMap, SocketIO* socketIO)
 {
-    uint8_t     move    = 1;
-    uint16_t    head, tail;
+    std::map<uint16_t,Train>    *trains = nodeMap->getTrains();
 
-    Train*      trains[SIZE_TRAINS];
+    uint8_t                     move    = 1;
+    uint16_t                    dest;
+    uint16_t                    head;
+    uint16_t                    tail;
+    nodemap_state_t             state;
 
-    trains[0]           = new Train(1, 70, 113);
-    trains[1]           = new Train(2, 75, 114);
-    trains[2]           = new Train(3, 77, 115);
-    trains[3]           = new Train(4, 79, 116);
+    nodeMap->trainAdd(95, 124, 3);
+    nodeMap->trainAdd(81, 82, 4);
+    nodeMap->trainAdd(64, 62, 4);
+    nodeMap->trainAdd(70, 113, 3);
 
-    trains[0]->setDest(57);
-    trains[1]->setDest(58);
-    trains[2]->setDest(81);
-    trains[3]->setDest(83);
-
-    for (int i = 0; i < SIZE_TRAINS; ++i) {
-        nodeMap->trainAdd(trains[i]);
-        trains[i]->dump();
-        tx(socketIO, 'e', trains[i]->getId(), trains[i]->getTail(), trains[i]->getHead());
-    }
-
-    sleep(1);
-
+    nodeMap->trainSetDest(1, 94);
+    nodeMap->trainSetDest(2, 58);
+    nodeMap->trainSetDest(3, 87);
+    nodeMap->trainSetDest(4, 15);
+    
     while (move) {
-        move = 0;
+        move    = 0;
 
-        for (int i = 0; i < SIZE_TRAINS; ++i) {
-            head = trains[i]->getHead();
-            tail = trains[i]->getTail();
+        for (std::map<uint16_t,Train>::iterator it = trains->begin(); it != trains->end(); ++it) {
+            head        = it->second.getHead();
+            tail        = it->second.getTail();
+            state       = nodeMap->trainRun(it->first);
 
-            if (head != trains[i]->getDest()) {
-                if (nodeMap->trainRun(trains[i])) {
-                    tx(socketIO, 'e', i + 1, head, trains[i]->getHead());
-                    tx(socketIO, 'l', i + 1, tail, trains[i]->getTail());
+            switch (state) {
+                case ok:
+                    if (it->second.getHead() != head) {
+                        tx(socketIO, 'e', it->first, head, it->second.getHead());
+                    }
+    
+                    if (it->second.getTail() != tail) {
+                        tx(socketIO, 'l', it->first, tail, it->second.getTail());
+                    }
+    
                     ++move;
-                }
+                    break;
+
+                case done:
+                    dest        = destNxt[it->second.getDest()];
+
+                    if (dest) {
+                        nodeMap->trainSetDest(it->first, dest);
+                        ++move;
+                    }
+
+                    break;
+
             }
         }
 
-        sleep(1);
+        usleep(20000);                  // 20 ms cycle time
     }
 }
 
@@ -91,11 +102,14 @@ int main(int argc, char **argv)
     nodeMap = new NodeMap();
     nodeMap->nodesLoad("nodes.txt");
     nodeMap->hopsLoad("hops.txt");
+    nodeMap->railsLoad("rails.txt");
 
     printf("initializing socketIO\n");
 
     socketIO    = new SocketIO(9999);
     socketIO->initServer();
+
+    initDestSeq();
 
     travel(nodeMap, socketIO);
 
