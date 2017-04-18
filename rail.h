@@ -15,6 +15,8 @@
 #ifndef RAIL_H
 #define RAIL_H
 
+#define RAIL_SIZE_POINTS                5
+
 
 #include <stdint.h>
 
@@ -27,33 +29,26 @@ public:
     ~Rail();
     int         initArc(double nx1, double ny1, double nx2, double ny2, double nr);
     int         initLine(double nx1, double ny1, double nx2, double ny2);
+    void        clear();
     void        dump(uint16_t id);
+    int         fill(uint16_t n, double pos1, double pos2);
     uint16_t    getN1();
     uint16_t    getN2();
-    double      getA1();
-    double      getA2();
+    double      getA(uint8_t p);
     double      getL();
     double      getR();
-    double      getX1();
-    double      getX2();
-    double      getXc();
-    double      getY1();
-    double      getY2();
-    double      getYc();
+    double      getX(uint8_t p);
+    double      getY(uint8_t p);
+    double      unify(double a);
 
 private:
     uint16_t    n1;
     uint16_t    n2;
-    double      a1;
-    double      a2;
+    double      a[RAIL_SIZE_POINTS];
     double      l;
     double      r;
-    double      x1;
-    double      x2;
-    double      xc;
-    double      y1;
-    double      y2;
-    double      yc;
+    double      x[RAIL_SIZE_POINTS];
+    double      y[RAIL_SIZE_POINTS];
 };
 
 
