@@ -31,10 +31,13 @@ Train::Train(uint16_t nhead, uint16_t ntail, double nlength)
     dest        = nhead;
     head        = nhead;
     headPos     = 0.0;
+    headRail    = 0;
     length      = nlength;
+    speed       = 0.0;
     speedMax    = 0.1;
     tail        = ntail;
     tailPos     = 0.0;
+    tailRail    = 0;
 }
 
 
